@@ -40,9 +40,31 @@ class Database {
     this.data[key] = value;
     this.save();
   }
+
+  // データを追加または更新する
+  public insertOrUpdate(key: string, value: any): void {
+    this.data[key] = value;
+    this.save();
+  }
+
+  // 指定されたキーに対応するデータを削除する
+  public delete(key: string): void {
+    delete this.data[key];
+    this.save();
+  }
+
+  // データベースの内容を全て取得する
+  public getAll(): Record<string, any> {
+    return this.data;
+  }
+
+  public find(predicate: (value: any, key: string) => boolean): any[] {
+    return Object.keys(this.data)
+      .filter((key) => predicate(this.data[key], key))
+      .map((key) => this.data[key]);
+  }
 }
 
-// 使用例
 const db = new Database("mydatabase.json");
-db.set("user1", { name: "Alice", age: 25 });
-console.log(db.get("user1"));
+db.insertOrUpdate("user3", { name: "Charlie", age: 35 });
+console.log(db.find((user) => user.age > 25));
