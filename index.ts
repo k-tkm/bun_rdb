@@ -1,70 +1,129 @@
 import * as fs from "fs";
 import * as path from "path";
 
-// データベースを表すクラス
-class Database {
-  private data: Record<string, any>;
-  private filename: string;
+interface TableSchema {
+  [key: string]: "string" | "number" | "boolean";
+}
 
-  constructor(filename: string) {
-    this.filename = filename;
-    this.data = this.load();
-  }
+class Table {
+  private data: Record<string, any>[] = [];
 
-  // データベースからデータを読み込む
-  private load(): Record<string, any> {
-    try {
-      const content = fs.readFileSync(
-        path.resolve(__dirname, this.filename),
-        "utf8"
-      );
-      return JSON.parse(content);
-    } catch (error) {
-      return {};
+  constructor(
+    private schema: TableSchema,
+    initialData?: Record<string, any>[]
+  ) {
+    if (initialData) {
+      this.data = initialData;
     }
   }
 
-  // データをデータベースに保存する
-  private save(): void {
-    const content = JSON.stringify(this.data, null, 2);
-    fs.writeFileSync(path.resolve(__dirname, this.filename), content, "utf8");
+  public insert(record: Record<string, any>): void {
+    // スキーマに従っているかの検証
+    // ...
+
+    this.data.push(record);
   }
 
-  // データを取得する
-  public get(key: string): any {
-    return this.data[key];
-  }
-
-  // データを設定する
-  public set(key: string, value: any): void {
-    this.data[key] = value;
-    this.save();
-  }
-
-  // データを追加または更新する
-  public insertOrUpdate(key: string, value: any): void {
-    this.data[key] = value;
-    this.save();
-  }
-
-  // 指定されたキーに対応するデータを削除する
-  public delete(key: string): void {
-    delete this.data[key];
-    this.save();
-  }
-
-  // データベースの内容を全て取得する
-  public getAll(): Record<string, any> {
+  public getData(): Record<string, any>[] {
     return this.data;
   }
 
-  public find(predicate: (value: any, key: string) => boolean): any[] {
-    return Object.keys(this.data)
-      .filter((key) => predicate(this.data[key], key))
-      .map((key) => this.data[key]);
+  // レコードを取得する
+  public get(
+    predicate: (record: Record<string, any>) => boolean
+  ): Record<string, any>[] {
+    return this.data.filter(predicate);
+  }
+
+  // レコードを更新する
+  public update(
+    predicate: (record: Record<string, any>) => boolean,
+    newValues: Partial<Record<string, any>>
+  ): void {
+    this.data.forEach((record) => {
+      if (predicate(record)) {
+        Object.assign(record, newValues);
+      }
+    });
+  }
+
+  // レコードを削除する
+  public delete(predicate: (record: Record<string, any>) => boolean): void {
+    this.data = this.data.filter((record) => !predicate(record));
+  }
+  // ...
+}
+
+class Database {
+  private tables: Record<string, Table> = {};
+  private dbFilePath: string;
+
+  constructor(dbFilePath: string) {
+    this.dbFilePath = dbFilePath;
+    this.load();
+  }
+
+  private load(): void {
+    if (fs.existsSync(this.dbFilePath)) {
+      const content = fs.readFileSync(this.dbFilePath, "utf8");
+      const jsonData = JSON.parse(content);
+
+      for (const tableName in jsonData) {
+        const tableData = jsonData[tableName];
+        this.tables[tableName] = new Table({}, tableData);
+      }
+    }
+  }
+
+  public save(): void {
+    const dataToSave: Record<string, any[]> = {};
+    for (const tableName in this.tables) {
+      dataToSave[tableName] = this.tables[tableName].getData();
+    }
+
+    fs.writeFileSync(
+      this.dbFilePath,
+      JSON.stringify(dataToSave, null, 2),
+      "utf8"
+    );
+  }
+
+  public createTable(tableName: string, schema: TableSchema): void {
+    if (this.tables[tableName]) {
+      throw new Error(`Table "${tableName}" already exists.`);
+    }
+
+    this.tables[tableName] = new Table(schema);
+    this.save();
+  }
+
+  public getTable(tableName: string): Table {
+    const table = this.tables[tableName];
+    if (!table) {
+      throw new Error(`Table "${tableName}" does not exist.`);
+    }
+
+    return table;
+  }
+
+  public dropTable(tableName: string): void {
+    if (!this.tables[tableName]) {
+      throw new Error(`Table "${tableName}" does not exist.`);
+    }
+
+    delete this.tables[tableName];
+    this.save();
   }
 }
 
+// 使用例
 const db = new Database("mydatabase.json");
-db.insertOrUpdate("user3", { name: "Charlie", age: 35 });
-console.log(db.find((user) => user.age > 25));
+db.createTable("users", {
+  id: "number",
+  name: "string",
+  isActive: "boolean",
+});
+
+const usersTable = db.getTable("users");
+usersTable.insert({ id: 1, name: "Alice", isActive: true });
+db.save();

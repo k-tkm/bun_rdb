@@ -6,5 +6,12 @@
   "user3": {
     "name": "Charlie",
     "age": 35
-  }
+  },
+  "users": [
+    {
+      "id": 1,
+      "name": "Alice",
+      "isActive": true
+    }
+  ]
 }
