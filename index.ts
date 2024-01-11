@@ -84,28 +84,36 @@ class Database {
   }
 
   private load(): void {
-    if (fs.existsSync(this.dbFilePath)) {
-      const content = fs.readFileSync(this.dbFilePath, "utf8");
-      const jsonData = JSON.parse(content);
+    try {
+      if (fs.existsSync(this.dbFilePath)) {
+        const content = fs.readFileSync(this.dbFilePath, "utf8");
+        const jsonData = JSON.parse(content);
 
-      for (const tableName in jsonData) {
-        const tableData = jsonData[tableName];
-        this.tables[tableName] = new Table({}, tableData);
+        for (const tableName in jsonData) {
+          const tableData = jsonData[tableName];
+          this.tables[tableName] = new Table({}, tableData);
+        }
       }
+    } catch (error) {
+      throw new Error(`Failed to load database: ${error}`);
     }
   }
 
   public save(): void {
-    const dataToSave: Record<string, any[]> = {};
-    for (const tableName in this.tables) {
-      dataToSave[tableName] = this.tables[tableName].getData();
-    }
+    try {
+      const dataToSave: Record<string, any[]> = {};
+      for (const tableName in this.tables) {
+        dataToSave[tableName] = this.tables[tableName].getData();
+      }
 
-    fs.writeFileSync(
-      this.dbFilePath,
-      JSON.stringify(dataToSave, null, 2),
-      "utf8"
-    );
+      fs.writeFileSync(
+        this.dbFilePath,
+        JSON.stringify(dataToSave, null, 2),
+        "utf8"
+      );
+    } catch (error) {
+      throw new Error(`Failed to save database: ${error}`);
+    }
   }
 
   public createTable(tableName: string, schema: TableSchema): void {
