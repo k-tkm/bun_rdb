@@ -12,6 +12,13 @@
       "id": 1,
       "name": "Alice",
       "isActive": true
-    }
-  ]
+    },
+    {
+      "id": 1,
+      "name": "Alice",
+      "isActive": true
+    },
+    {}
+  ],
+  "users2": []
 }

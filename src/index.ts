@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { SQLCommand, SQLCommandType, SQLParser } from "./sqlParser";
 
 interface TableSchema {
   [key: string]: "string" | "number" | "boolean";
@@ -142,16 +143,48 @@ class Database {
     delete this.tables[tableName];
     this.save();
   }
+
+  public executeSQL(query: string): any {
+    const command = SQLParser.parse(query);
+
+    switch (command.type) {
+      case SQLCommandType.SELECT:
+        return this.executeSelect(command);
+      case SQLCommandType.INSERT:
+        return this.executeInsert(command);
+      // 他のコマンドの実行ロジックもここに追加
+      default:
+        throw new Error(`Unsupported SQL command: ${command.type}`);
+    }
+  }
+
+  private executeSelect(command: SQLCommand): any {
+    const table = this.getTable(command.tableName);
+    return table.get((record) => {
+      if (command.fields) {
+        return command.fields.some((field) => field in record);
+      }
+      return true;
+    });
+  }
+
+  private executeInsert(command: SQLCommand): void {
+    const table = this.getTable(command.tableName);
+    table.insert(command.values!);
+    this.save();
+  }
 }
 
 // 使用例
 const db = new Database("mydatabase.json");
-db.createTable("users", {
-  id: "number",
-  name: "string",
-  isActive: "boolean",
-});
+// db.createTable("users2", {
+//   id: "number",
+//   name: "string",
+//   isActive: "boolean",
+// });
 
-const usersTable = db.getTable("users");
-usersTable.insert({ id: 1, name: "Alice", isActive: true });
-db.save();
+db.executeSQL(
+  'INSERT INTO users (id, name, isActive) VALUES (1, "Alice", true)'
+);
+const result = db.executeSQL("SELECT * FROM users");
+console.log(result);
