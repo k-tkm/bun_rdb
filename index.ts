@@ -17,9 +17,27 @@ class Table {
     }
   }
 
+  private validateRecord(
+    record: Record<string, any>,
+    forUpdate: boolean = false
+  ): void {
+    for (const key in this.schema) {
+      const expectedType = this.schema[key];
+      const value = record[key];
+
+      if (!forUpdate || value !== undefined) {
+        if (typeof value !== expectedType) {
+          throw new Error(
+            `Type mismatch for '${key}': expected ${expectedType}, got ${typeof value}`
+          );
+        }
+      }
+    }
+  }
   public insert(record: Record<string, any>): void {
     // スキーマに従っているかの検証
     // ...
+    this.validateRecord(record);
 
     this.data.push(record);
   }
@@ -40,6 +58,8 @@ class Table {
     predicate: (record: Record<string, any>) => boolean,
     newValues: Partial<Record<string, any>>
   ): void {
+    this.validateRecord(newValues, true);
+
     this.data.forEach((record) => {
       if (predicate(record)) {
         Object.assign(record, newValues);
